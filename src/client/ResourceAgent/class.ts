@@ -90,8 +90,8 @@ export class ResourceChannel {
                   });
                   this.webSocket.send(upstream);
                 }
-                this.#onmessage(message);
-                this.#bc.postMessage(message);
+                // this.eventlistheners
+                this.broadcastChannel.postMessage(message);
               };
               void deliver();
             };
@@ -106,7 +106,7 @@ export class ResourceChannel {
               });
             });
 
-            this.#isLeader = false;
+            this.isLeader = false;
             if (this.webSocket === webSocket) this.webSocket = null;
           }
         );
@@ -120,13 +120,13 @@ export class ResourceChannel {
 
   broadcast(message: ResourceChannelMessage): void {
     this.#onmessage(message);
-    this.#bc.postMessage(message);
+    this.broadcastChannel.postMessage(message);
 
     if (!this.#isLeader) return;
     const webSocket = this.webSocket;
     if (!webSocket || webSocket.readyState !== WebSocket.OPEN) return;
 
-    ResourceChannel.#sendWebSocket(webSocket, message);
+    ResourceChannel.sendWebSocket(webSocket, message);
   }
 
   backup(object) {}
@@ -174,5 +174,3 @@ export class ResourceChannel {
 
   public removeEventListener() {}
 }
-
-new HTMLElement().addEventListener();
