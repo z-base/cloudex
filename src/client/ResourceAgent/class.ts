@@ -3,33 +3,33 @@ import type { ResourceIdentifier } from "../../helpers/validateIdentifier";
 import {
   packMessage,
   unpackMessage,
-  type ResourceChannelMessage,
+  type ResourceAgentMessage,
 } from "../../helpers/message";
 import { validateIdentifier } from "../../helpers/validateIdentifier";
 import { UUID } from "crypto";
 import { HmacAgent, HmacCluster } from "zeyra";
 
-type ResourceChannelChallenge = {
+type ResourceAgentChallenge = {
   challengeId: UUID;
   challengePayload: Base64URLString;
 };
 
-type ResourceChannelEventMap = {
-  "connection-challenged": Set<ResourceChannelChallenge>;
-  "connection-verified": Set<ResourceChannelMessage>;
-  "broadcast-recieved": Set<ResourceChannelMessage>;
-  "peer-state-recieved": Set<ResourceChannelMessage>;
+type ResourceAgentEventMap = {
+  "connection-challenged": Set<ResourceAgentChallenge>;
+  "connection-verified": Set<ResourceAgentMessage>;
+  "broadcast-recieved": Set<ResourceAgentMessage>;
+  "peer-state-recieved": Set<ResourceAgentMessage>;
 };
 
-export class ResourceChannel {
+export class ResourceAgent {
   private readonly url: `/api/v1/resource/${ResourceIdentifier}`;
   private readonly hmacJwk: JsonWebKey;
   private broadcastChannel: BroadcastChannel | null = null;
   private webSocket: WebSocket | null = null;
   private isLeader: boolean = false;
   private eventListeners: {
-    [key in keyof ResourceChannelEventMap]?: (
-      data: ResourceChannelEventMap[key]
+    [key in keyof ResourceAgentEventMap]?: (
+      data: ResourceAgentEventMap[key]
     ) => void;
   } = {};
 
@@ -39,13 +39,13 @@ export class ResourceChannel {
     this.url = `/api/v1/resource/${validatedIdentifier}`;
     this.hmacJwk = hmacJwk;
 
-    const channelName = ResourceChannel.channelName(this.url);
-    const lockName = ResourceChannel.lockName(this.url);
+    const channelName = ResourceAgent.channelName(this.url);
+    const lockName = ResourceAgent.lockName(this.url);
 
     this.broadcastChannel = new BroadcastChannel(channelName);
 
     this.broadcastChannel.onmessage = (
-      event: MessageEvent<ResourceChannelMessage>
+      event: MessageEvent<ResourceAgentMessage>
     ) => {
       const message = event.data;
       if (!message) return;
@@ -56,7 +56,7 @@ export class ResourceChannel {
       const webSocket = this.webSocket;
       if (!webSocket || webSocket.readyState !== WebSocket.OPEN) return;
 
-      ResourceChannel.sendWebSocket(webSocket, message);
+      ResourceAgent.sendWebSocket(webSocket, message);
     };
 
     /** if navigator online, and on "online" event,  */
@@ -118,7 +118,7 @@ export class ResourceChannel {
 
   requestStateSync() {}
 
-  broadcast(message: ResourceChannelMessage): void {
+  broadcast(message: ResourceAgentMessage): void {
     this.#onmessage(message);
     this.broadcastChannel.postMessage(message);
 
@@ -126,7 +126,7 @@ export class ResourceChannel {
     const webSocket = this.webSocket;
     if (!webSocket || webSocket.readyState !== WebSocket.OPEN) return;
 
-    ResourceChannel.sendWebSocket(webSocket, message);
+    ResourceAgent.sendWebSocket(webSocket, message);
   }
 
   backup(object) {}
@@ -146,17 +146,17 @@ export class ResourceChannel {
     this.isLeader = false;
   }
 
-  private static channelName(webSocketUrl: ResourceChannel["url"]): string {
+  private static channelName(webSocketUrl: ResourceAgent["url"]): string {
     return `origin-channel::${webSocketUrl}`;
   }
 
-  private static lockName(webSocketUrl: ResourceChannel["url"]): string {
+  private static lockName(webSocketUrl: ResourceAgent["url"]): string {
     return `origin-channel-lock::${webSocketUrl}`;
   }
 
   private static sendWebSocket(
     webSocket: WebSocket,
-    message: ResourceChannelMessage
+    message: ResourceAgentMessage
   ): void {
     if (
       !Object.hasOwn(message, "identifier") ||
@@ -168,8 +168,8 @@ export class ResourceChannel {
   }
 
   public addEventListener(
-    type: keyof ResourceChannelEventMap,
-    listener: (this: ResourceChannel, data: ResourceChannelMessage) => void
+    type: keyof ResourceAgentEventMap,
+    listener: (this: ResourceAgent, data: ResourceAgentMessage) => void
   ) {}
 
   public removeEventListener() {}
