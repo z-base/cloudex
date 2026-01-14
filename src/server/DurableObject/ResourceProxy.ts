@@ -79,12 +79,16 @@ export class ResourceProxy extends DurableObject<Env> {
     if (!verified) return socket.close(1008, "verification failed");
     this.verifiedSockets.add(socket);
     const downStream = packMessage({ code: 3, payload: this.backup });
-    socket.send();
+    socket.send(downStream);
   }
 
-  async resourceBackup(backup: ArrayBuffer) {}
+  async resourceBackup(backup: ArrayBuffer) {
+    this.backup = backup
+  }
 
   async resourceRegisterBackup() {}
 
   async resourceRegistrationConflict() {}
+
+  onDOHIBERNATION OR ALL WEBSOCKETS CLOSED BACKUP to R2
 }
