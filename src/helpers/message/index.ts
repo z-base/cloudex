@@ -1,30 +1,29 @@
 import { Bytes } from "bytecodec";
 import { encode, decode } from "@msgpack/msgpack";
-import { validateIdentifier } from "../validateIdentifier";
+import { ensureCloudexCompatibleIdentifier } from "../ensureCloudexCompatibleIdentifier";
 
 type BytePayload = BufferSource;
+type Envelope = { iv: Uint8Array; ciphertext: ArrayBuffer };
 
 type ChallengeMessage = { code: 1; payload: { challenge: Base64URLString } };
 type PatchMessage = {
   code: 2;
-  payload: { iv: Uint8Array; ciphertext: ArrayBuffer } | ArrayBuffer;
+  payload: Envelope;
 };
 type MergeMessage = {
   code: 3;
-  payload: { iv: Uint8Array; ciphertext: ArrayBuffer } | ArrayBuffer;
+  payload: Envelope;
 };
 type BackupMessage = {
   code: 4;
-  payload:
-    | {
-        identifier: Base64URLString;
-        envelope: { iv: Uint8Array; ciphertext: ArrayBuffer };
-      }
-    | ArrayBuffer;
+  payload: {
+    identifier: Base64URLString;
+    envelope: Envelope;
+  };
 };
 type SignatureMessage = { code: 5; payload: { signature: BytePayload } };
 
-export type ResourceMessageObject =
+export type ResourceAgentMessage =
   | ChallengeMessage
   | PatchMessage
   | MergeMessage
@@ -34,7 +33,7 @@ export type ResourceMessageObject =
 const CODE_BYTES = 1;
 
 export function packMessage(
-  messageObject: ResourceMessageObject
+  messageObject: ResourceAgentMessage
 ): ArrayBufferLike {
   const codeByte = Uint8Array.of(messageObject.code);
 
@@ -55,7 +54,7 @@ export function packMessage(
     }
 
     case 4: {
-      validateIdentifier(messageObject.payload.identifier);
+      ensureCloudexCompatibleIdentifier(messageObject.payload.identifier);
       return Bytes.concat([codeByte, encode(messageObject.payload)]).buffer;
     }
 
@@ -67,7 +66,7 @@ export function packMessage(
 
 export function unpackMessage(
   messageBuffer: ArrayBuffer
-): ResourceMessageObject {
+): ResourceAgentMessage {
   const bytes = Bytes.toUint8Array(messageBuffer);
   if (bytes.byteLength < CODE_BYTES) throw new TypeError("message too short");
 
@@ -95,7 +94,7 @@ export function unpackMessage(
 
     case 4: {
       const payload = decode(payloadBytes) as BackupMessage["payload"];
-      validateIdentifier(payload.identifier);
+      ensureCloudexCompatibleIdentifier(payload.identifier);
       return { code: 4, payload };
     }
 

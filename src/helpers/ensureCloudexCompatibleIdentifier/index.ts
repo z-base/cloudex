@@ -5,7 +5,9 @@ export type ResourceIdentifier = string & {
 };
 const BASE64URL_256_REGEX = /^[A-Za-z0-9_-]{43}$/;
 
-export function validateIdentifier(identifier: string): ResourceIdentifier {
+export function ensureCloudexCompatibleIdentifier(
+  identifier: string
+): ResourceIdentifier {
   if (!BASE64URL_256_REGEX.test(identifier)) {
     throw new TypeError(
       "{cloudex} identifier must be 256-bit base64url (43 chars, no padding)."

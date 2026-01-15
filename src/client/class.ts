@@ -1,3 +1,1 @@
-import { ResourceCluster } from "./ResourceCluster/class";
-
-export default ResourceCluster;
+export class Cloudex {}

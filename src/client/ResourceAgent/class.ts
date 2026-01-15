@@ -1,11 +1,11 @@
 import { Bytes } from "bytecodec";
-import type { ResourceIdentifier } from "../../helpers/validateIdentifier";
+import type { ResourceIdentifier } from "../../helpers/ensureCloudexCompatibleIdentifier";
 import {
   packMessage,
   unpackMessage,
   type ResourceAgentMessage,
 } from "../../helpers/message";
-import { validateIdentifier } from "../../helpers/validateIdentifier";
+import { validateIdentifier } from "../../helpers/ensureCloudexCompatibleIdentifier";
 import { UUID } from "crypto";
 import { HmacAgent, HmacCluster } from "zeyra";
 
@@ -28,9 +28,9 @@ export class ResourceAgent {
   private webSocket: WebSocket | null = null;
   private isLeader: boolean = false;
   private eventListeners: {
-    [key in keyof ResourceAgentEventMap]?: (
-      data: ResourceAgentEventMap[key]
-    ) => void;
+    [key in keyof ResourceAgentEventMap]?: Set<
+      (data: ResourceAgentEventMap[key]) => void
+    >;
   } = {};
 
   constructor(identifier: string, hmacJwk: JsonWebKey) {
@@ -51,6 +51,12 @@ export class ResourceAgent {
       if (!message) return;
 
       const eventListeners = this.eventListeners["broadcast-recieved"];
+
+      for (const eventListener of eventListeners) {
+        if (typeof eventListener === "function") {
+          eventListener(this, message);
+        }
+      }
 
       if (!this.isLeader) return;
       const webSocket = this.webSocket;
@@ -119,17 +125,31 @@ export class ResourceAgent {
   requestStateSync() {}
 
   broadcast(message: ResourceAgentMessage): void {
-    this.#onmessage(message);
+    const eventListeners = this.eventListeners["broadcast-recieved"];
+    for (const eventListener of eventListeners) {
+      if (typeof eventListener === "function") {
+        eventListener(message);
+      }
+    }
+
     this.broadcastChannel.postMessage(message);
 
-    if (!this.#isLeader) return;
+    if (!this.isLeader) return;
     const webSocket = this.webSocket;
     if (!webSocket || webSocket.readyState !== WebSocket.OPEN) return;
 
     ResourceAgent.sendWebSocket(webSocket, message);
   }
 
-  backup(object) {}
+  backup(snapshot: unknown) {
+    this.broadcastChannel.postMessage(message);
+
+    if (!this.isLeader) return;
+    const webSocket = this.webSocket;
+    if (!webSocket || webSocket.readyState !== WebSocket.OPEN) return;
+
+    ResourceAgent.sendWebSocket(webSocket, message);
+  }
 
   private async sign(challenge: Base64URLString) {
     const buffer = await HmacCluster.sign(this.hmacJwk, challenge);
